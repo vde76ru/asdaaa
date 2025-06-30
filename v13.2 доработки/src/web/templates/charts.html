@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Графики - Crypto Trading Bot</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+        
+        .chart-container {
+            height: 400px;
+            margin-bottom: 20px;
+            background: #2a2a2a;
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid #444;
+        }
+        
+        .small-chart-container {
+            height: 300px;
+            background: #2a2a2a;
+            border-radius: 8px;
+            padding: 15px;
+            border: 1px solid #444;
+        }
+        
+        .card {
+            background-color: #2a2a2a;
+            border: 1px solid #444;
+        }
+        
+        .indicators-panel {
+            background: #2a2a2a;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            border: 1px solid #444;
+        }
+        
+        .indicator-value {
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        
+        .navbar-dark {
+            background-color: #1a1a1a !important;
+        }
+        
+        .real-time-badge {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background: #28a745;
+            border-radius: 50%;
+            margin-left: 10px;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
+        
+        .btn-outline-light:hover {
+            background-color: #28a745;
+            border-color: #28a745;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-chart-line"></i> Crypto Trading Bot
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="dashboard.html">
+                            <i class="fas fa-tachometer-alt"></i> Дашборд
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="charts.html">
+                            <i class="fas fa-chart-area"></i> Графики
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="analytics.html">
+                            <i class="fas fa-analytics"></i> Аналитика
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <!-- Панель управления -->
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <div class="d-flex align-items-center">
+                    <select id="symbolSelector" class="form-select bg-dark text-white border-secondary">
+                        <option value="BTCUSDT">BTC/USDT</option>
+                        <option value="ETHUSDT">ETH/USDT</option>
+                        <option value="BNBUSDT">BNB/USDT</option>
+                        <option value="SOLUSDT">SOL/USDT</option>
+                    </select>
+                    <span class="real-time-badge" title="Real-time данные"></span>
+                </div>
+            </div>
+            <div class="col-md-6 text-end">
+                <button id="refreshBtn" class="btn btn-outline-light">
+                    <i class="fas fa-sync-alt"></i> Обновить
+                </button>
+            </div>
+        </div>
+
+        <!-- Панель индикаторов -->
+        <div class="indicators-panel">
+            <div class="row">
+                <div class="col-md-2">
+                    <div class="text-muted">Цена</div>
+                    <div class="indicator-value text-primary" id="currentPrice">$67,850.00</div>
+                </div>
+                <div class="col-md-2">
+                    <div class="text-muted">Изменение 24ч</div>
+                    <div class="indicator-value text-success" id="priceChange">+2.45%</div>
+                </div>
+                <div class="col-md-2">
+                    <div class="text-muted">Объем 24ч</div>
+                    <div class="indicator-value" id="volume24h">$2.1B</div>
+                </div>
+                <div class="col-md-2">
+                    <div class="text-muted">Баланс</div>
+                    <div class="indicator-value text-warning" id="totalBalance">$1,000.00</div>
+                </div>
+                <div class="col-md-2">
+                    <div class="text-muted">P&L сегодня</div>
+                    <div class="indicator-value text-success" id="pnlToday">+$25.50</div>
+                </div>
+                <div class="col-md-2">
+                    <div class="text-muted">Активные позиции</div>
+                    <div class="indicator-value" id="activePositions">3</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Основные графики -->
+        <div class="row">
+            <!-- График цены -->
+            <div class="col-md-8">
+                <div class="chart-container">
+                    <h5><i class="fas fa-chart-line text-primary"></i> График цены</h5>
+                    <canvas id="priceChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- График баланса -->
+            <div class="col-md-4">
+                <div class="chart-container">
+                    <h5><i class="fas fa-wallet text-success"></i> Баланс</h5>
+                    <canvas id="balanceChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Дополнительные графики -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-chart-pie text-warning"></i> Активные позиции</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="small-chart-container">
+                            <canvas id="positionsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-history text-info"></i> История сделок</h5>
+                    </div>
+                    <div class="card-body" style="max-height: 350px; overflow-y: auto;">
+                        <table class="table table-dark table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Время</th>
+                                    <th>Пара</th>
+                                    <th>Тип</th>
+                                    <th>Цена</th>
+                                    <th>P&L</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tradesTableBody">
+                                <tr>
+                                    <td>12:30</td>
+                                    <td><span class="badge bg-primary">BTCUSDT</span></td>
+                                    <td><span class="badge bg-success">BUY</span></td>
+                                    <td>$67,500</td>
+                                    <td class="text-success">+$125.50</td>
+                                </tr>
+                                <tr>
+                                    <td>11:45</td>
+                                    <td><span class="badge bg-primary">ETHUSDT</span></td>
+                                    <td><span class="badge bg-danger">SELL</span></td>
+                                    <td>$3,450</td>
+                                    <td class="text-danger">-$45.20</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TradingView виджет (опционально) -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="chart-container">
+                    <h5><i class="fas fa-chart-area text-info"></i> TradingView</h5>
+                    <div id="tradingview_chart" style="height: 350px; background: #1a1a1a; border-radius: 4px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- TradingView Library (опционально) -->
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+    
+    <!-- ТОЛЬКО ОДИН файл для графиков -->
+    
+    <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+    
+    <script>
+        // Дополнительные обработчики интерфейса
+        document.addEventListener('DOMContentLoaded', function() {
+            // Обработчик кнопки обновления
+            document.getElementById('refreshBtn').addEventListener('click', function() {
+                if (window.chartsManager) {
+                    window.chartsManager.updateBalanceWithDemo();
+                    window.chartsManager.updatePriceWithDemo();
+                    window.chartsManager.showSuccess('Графики обновлены');
+                }
+            });
+            
+            // Обработчик смены символа
+            document.getElementById('symbolSelector').addEventListener('change', function(e) {
+                const symbol = e.target.value;
+                console.log('Выбран символ:', symbol);
+                
+                // Обновляем индикатор цены
+                const prices = {
+                    'BTCUSDT': '$67,850',
+                    'ETHUSDT': '$3,450',
+                    'BNBUSDT': '$640',
+                    'SOLUSDT': '$185'
+                };
+                
+                document.getElementById('currentPrice').textContent = prices[symbol] || '$0';
+            });
+        });
+    </script>
+</body>
+</html>
