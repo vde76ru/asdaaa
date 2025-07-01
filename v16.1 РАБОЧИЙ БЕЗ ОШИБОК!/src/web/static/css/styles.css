@@ -1,0 +1,36 @@
+.price-updated {
+    background-color: rgba(40, 167, 69, 0.2) !important;
+    transition: background-color 1s ease-out;
+}
+
+.crypto-card {
+    transition: transform 0.2s ease;
+}
+
+.crypto-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.price-positive {
+    color: #28a745 !important;
+}
+
+.price-negative {
+    color: #dc3545 !important;
+}
+
+.loading-spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

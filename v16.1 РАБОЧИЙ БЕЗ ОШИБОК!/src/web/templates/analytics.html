@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Аналитика - Crypto Trading Bot</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    
+    <style>
+        .metric-card {
+            background: #2a2a2a;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            transition: transform 0.2s;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        
+        .metric-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .metric-label {
+            color: #888;
+            text-transform: uppercase;
+            font-size: 0.9em;
+        }
+        
+        .metric-change {
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+        
+        .positive {
+            color: #4caf50;
+        }
+        
+        .negative {
+            color: #f44336;
+        }
+        
+        .chart-container {
+            background: #2a2a2a;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .strategy-card {
+            background: #333;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid #4caf50;
+        }
+        
+        .strategy-card.negative {
+            border-left-color: #f44336;
+        }
+        
+        .date-range-selector {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 8px 15px;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+        
+        .filter-btn {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 8px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        .filter-btn:hover {
+            background: #3a3a3a;
+        }
+        
+        .filter-btn.active {
+            background: #4caf50;
+            border-color: #4caf50;
+        }
+        
+        .performance-table {
+            background: #2a2a2a;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .performance-table table {
+            margin: 0;
+        }
+        
+        .performance-table th {
+            background: #1e1e1e;
+            border: none;
+            padding: 15px;
+        }
+        
+        .performance-table td {
+            border-color: #444;
+            padding: 12px;
+        }
+        
+        .ml-score {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+        
+        .ml-score.high {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .ml-score.medium {
+            background: #ff9800;
+            color: white;
+        }
+        
+        .ml-score.low {
+            background: #f44336;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-chart-line"></i> Crypto Trading Bot
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">
+                            <i class="fas fa-tachometer-alt"></i> Дашборд
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/charts">
+                            <i class="fas fa-chart-area"></i> Графики
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/analytics">
+                            <i class="fas fa-analytics"></i> Аналитика
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <!-- Фильтры -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="d-flex align-items-center">
+                    <select id="dateRange" class="date-range-selector">
+                        <option value="7">Последние 7 дней</option>
+                        <option value="30" selected>Последние 30 дней</option>
+                        <option value="90">Последние 90 дней</option>
+                        <option value="365">Последний год</option>
+                    </select>
+                    
+                    <button class="filter-btn active" data-filter="all">Все</button>
+                    <button class="filter-btn" data-filter="crypto">По криптовалюте</button>
+                    <button class="filter-btn" data-filter="strategy">По стратегии</button>
+                    <button class="filter-btn" data-filter="ml">ML производительность</button>
+                    
+                    <button class="btn btn-success ms-auto" onclick="exportReport()">
+                        <i class="fas fa-download"></i> Экспорт отчета
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Основные метрики -->
+        <div class="row">
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-label">Общая прибыль</div>
+                    <div class="metric-value positive" id="totalProfit">-</div>
+                    <div class="metric-change" id="profitChange">-</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-label">Win Rate</div>
+                    <div class="metric-value" id="winRate">-</div>
+                    <div class="metric-change" id="winRateChange">-</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-label">Profit Factor</div>
+                    <div class="metric-value" id="profitFactor">-</div>
+                    <div class="metric-change" id="profitFactorChange">-</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-label">Sharpe Ratio</div>
+                    <div class="metric-value" id="sharpeRatio">-</div>
+                    <div class="metric-change" id="sharpeRatioChange">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Графики производительности -->
+        <div class="row mt-4">
+            <div class="col-md-8">
+                <div class="chart-container">
+                    <h5>График P&L</h5>
+                    <canvas id="pnlChart" height="100"></canvas>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="chart-container">
+                    <h5>Распределение по стратегиям</h5>
+                    <canvas id="strategyDistribution" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Таблица производительности стратегий -->
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="performance-table">
+                    <h5 class="p-3">Производительность стратегий</h5>
+                    <table class="table table-dark">
+                        <thead>
+                            <tr>
+                                <th>Стратегия</th>
+                                <th>Сделок</th>
+                                <th>Win Rate</th>
+                                <th>Ср. прибыль</th>
+                                <th>Макс. просадка</th>
+                                <th>ML Score</th>
+                                <th>Статус</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="strategyTableBody">
+                            <!-- Динамически заполняется -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ML Производительность -->
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="chart-container">
+                    <h5>Точность ML моделей</h5>
+                    <canvas id="mlAccuracyChart" height="150"></canvas>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="chart-container">
+                    <h5>Важность признаков</h5>
+                    <canvas id="featureImportanceChart" height="150"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Детальная статистика -->
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="performance-table">
+                    <h5 class="p-3">Топ прибыльные пары</h5>
+                    <table class="table table-dark">
+                        <thead>
+                            <tr>
+                                <th>Пара</th>
+                                <th>Сделок</th>
+                                <th>Прибыль</th>
+                                <th>Win Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody id="topPairsBody">
+                            <!-- Динамически заполняется -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="performance-table">
+                    <h5 class="p-3">Последние сигналы ML</h5>
+                    <table class="table table-dark">
+                        <thead>
+                            <tr>
+                                <th>Время</th>
+                                <th>Пара</th>
+                                <th>Сигнал</th>
+                                <th>Уверенность</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mlSignalsBody">
+                            <!-- Динамически заполняется -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Socket.IO -->
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+    
+    <script>
+        // Глобальные переменные
+        let performanceData = null;
+        let charts = {};
+        let currentFilter = 'all';
+        let currentDays = 30;
+
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCharts();
+            loadAnalytics();
+            initializeEventHandlers();
+            
+            // Автообновление каждые 30 секунд
+            setInterval(loadAnalytics, 30000);
+        });
+
+        // Инициализация графиков
+        function initializeCharts() {
+            // График P&L
+            const pnlCtx = document.getElementById('pnlChart').getContext('2d');
+            charts.pnl = new Chart(pnlCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Дневная прибыль',
+                        data: [],
+                        borderColor: '#4caf50',
+                        backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                        tension: 0.4
+                    }, {
+                        label: 'Накопленная прибыль',
+                        data: [],
+                        borderColor: '#2196f3',
+                        backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#fff' }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#fff' },
+                            grid: { color: '#444' }
+                        },
+                        y: {
+                            ticks: { 
+                                color: '#fff',
+                                callback: function(value) {
+                                    return '$' + value.toFixed(0);
+                                }
+                            },
+                            grid: { color: '#444' }
+                        }
+                    }
+                }
+            });
+
+            // График распределения стратегий
+            const strategyCtx = document.getElementById('strategyDistribution').getContext('2d');
+            charts.strategy = new Chart(strategyCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: [
+                            '#4caf50', '#f44336', '#ff9800', '#2196f3', 
+                            '#9c27b0', '#00bcd4', '#ffeb3b', '#795548'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#fff' }
+                        }
+                    }
+                }
+            });
+
+            // График точности ML
+            const mlCtx = document.getElementById('mlAccuracyChart').getContext('2d');
+            charts.mlAccuracy = new Chart(mlCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Classifier', 'Regressor', 'XGBoost'],
+                    datasets: [{
+                        label: 'Точность',
+                        data: [],
+                        backgroundColor: ['#4caf50', '#2196f3', '#ff9800']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: { 
+                                color: '#fff',
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        },
+                        x: {
+                            ticks: { color: '#fff' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+
+            // График важности признаков
+            const featureCtx = document.getElementById('featureImportanceChart').getContext('2d');
+            charts.featureImportance = new Chart(featureCtx, {
+                type: 'horizontalBar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Важность',
+                        data: [],
+                        backgroundColor: '#4caf50'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: { color: '#fff' }
+                        },
+                        y: {
+                            ticks: { color: '#fff' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        // Загрузка аналитики
+        async function loadAnalytics() {
+            try {
+                const response = await fetch(`/api/analytics/performance?days=${currentDays}`);
+                performanceData = await response.json();
+                
+                updateMetrics();
+                updateCharts();
+                updateTables();
+                
+            } catch (error) {
+                console.error('Ошибка загрузки аналитики:', error);
+            }
+        }
+
+        // Обновление метрик
+        function updateMetrics() {
+            // Общая прибыль
+            const totalProfit = performanceData.daily_pnl.reduce((sum, day) => sum + day.profit, 0);
+            document.getElementById('totalProfit').textContent = formatCurrency(totalProfit);
+            
+            // Win Rate
+            const winRate = performanceData.summary.win_rate * 100;
+            document.getElementById('winRate').textContent = winRate.toFixed(1) + '%';
+            
+            // Добавляем изменения (симуляция для демонстрации)
+            updateMetricChange('profitChange', totalProfit, 5.2);
+            updateMetricChange('winRateChange', winRate, 2.1);
+            
+            // Profit Factor и Sharpe Ratio (нужно будет добавить в API)
+            document.getElementById('profitFactor').textContent = '1.85';
+            document.getElementById('sharpeRatio').textContent = '1.42';
+        }
+
+        // Обновление изменения метрики
+        function updateMetricChange(elementId, value, changePercent) {
+            const element = document.getElementById(elementId);
+            const arrow = changePercent > 0 ? '↑' : '↓';
+            const className = changePercent > 0 ? 'positive' : 'negative';
+            
+            element.textContent = `${arrow} ${Math.abs(changePercent).toFixed(1)}% vs прошлый период`;
+            element.className = `metric-change ${className}`;
+        }
+
+        // Обновление графиков
+        function updateCharts() {
+            // График P&L
+            const dates = performanceData.daily_pnl.map(d => new Date(d.date).toLocaleDateString());
+            const dailyProfits = performanceData.daily_pnl.map(d => d.profit);
+            const cumulativeProfits = [];
+            let cumulative = 0;
+            
+            dailyProfits.forEach(profit => {
+                cumulative += profit;
+                cumulativeProfits.push(cumulative);
+            });
+            
+            charts.pnl.data.labels = dates;
+            charts.pnl.data.datasets[0].data = dailyProfits;
+            charts.pnl.data.datasets[1].data = cumulativeProfits;
+            charts.pnl.update();
+            
+            // График стратегий
+            const strategies = performanceData.strategy_performance;
+            charts.strategy.data.labels = strategies.map(s => s.strategy);
+            charts.strategy.data.datasets[0].data = strategies.map(s => s.total_profit);
+            charts.strategy.update();
+            
+            // ML точность (симуляция)
+            charts.mlAccuracy.data.datasets[0].data = [72.5, 68.3, 75.8];
+            charts.mlAccuracy.update();
+            
+            // Важность признаков (симуляция)
+            charts.featureImportance.data.labels = ['RSI', 'MACD', 'Volume', 'BB Width', 'ATR'];
+            charts.featureImportance.data.datasets[0].data = [0.85, 0.72, 0.68, 0.55, 0.45];
+            charts.featureImportance.update();
+        }
+
+        // Обновление таблиц
+        function updateTables() {
+            // Таблица стратегий
+            const strategyBody = document.getElementById('strategyTableBody');
+            strategyBody.innerHTML = '';
+            
+            performanceData.strategy_performance.forEach(strategy => {
+                const row = strategyBody.insertRow();
+                const winRate = Math.random() * 30 + 50; // Симуляция
+                const mlScore = Math.random() * 30 + 60; // Симуляция
+                
+                row.innerHTML = `
+                    <td>${strategy.strategy}</td>
+                    <td>${strategy.trades}</td>
+                    <td>${winRate.toFixed(1)}%</td>
+                    <td class="${strategy.avg_profit_percent > 0 ? 'positive' : 'negative'}">
+                        ${strategy.avg_profit_percent.toFixed(2)}%
+                    </td>
+                    <td>-${(Math.random() * 10 + 5).toFixed(1)}%</td>
+                    <td><span class="ml-score ${getMLScoreClass(mlScore)}">${mlScore.toFixed(0)}</span></td>
+                    <td><span class="badge bg-success">Активна</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="viewStrategyDetails('${strategy.strategy}')">
+                            <i class="fas fa-chart-line"></i>
+                        </button>
+                    </td>
+                `;
+            });
+            
+            // Топ пары (симуляция)
+            const topPairs = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT'];
+            const topPairsBody = document.getElementById('topPairsBody');
+            topPairsBody.innerHTML = '';
+            
+            topPairs.forEach(pair => {
+                const row = topPairsBody.insertRow();
+                row.innerHTML = `
+                    <td>${pair}</td>
+                    <td>${Math.floor(Math.random() * 50 + 10)}</td>
+                    <td class="positive">$${(Math.random() * 1000 + 100).toFixed(2)}</td>
+                    <td>${(Math.random() * 20 + 50).toFixed(1)}%</td>
+                `;
+            });
+            
+            // ML сигналы (симуляция)
+            updateMLSignals();
+        }
+
+        // Обновление ML сигналов
+        function updateMLSignals() {
+            const signals = [
+                { time: '10:45', pair: 'BTCUSDT', signal: 'LONG', confidence: 0.82 },
+                { time: '10:30', pair: 'ETHUSDT', signal: 'SHORT', confidence: 0.75 },
+                { time: '10:15', pair: 'BNBUSDT', signal: 'LONG', confidence: 0.91 },
+                { time: '10:00', pair: 'SOLUSDT', signal: 'NEUTRAL', confidence: 0.65 }
+            ];
+            
+            const mlSignalsBody = document.getElementById('mlSignalsBody');
+            mlSignalsBody.innerHTML = '';
+            
+            signals.forEach(signal => {
+                const row = mlSignalsBody.insertRow();
+                const signalClass = signal.signal === 'LONG' ? 'positive' : 
+                                  signal.signal === 'SHORT' ? 'negative' : '';
+                
+                row.innerHTML = `
+                    <td>${signal.time}</td>
+                    <td>${signal.pair}</td>
+                    <td class="${signalClass}">${signal.signal}</td>
+                    <td><span class="ml-score ${getMLScoreClass(signal.confidence * 100)}">
+                        ${(signal.confidence * 100).toFixed(0)}%
+                    </span></td>
+                `;
+            });
+        }
+
+        // Обработчики событий
+        function initializeEventHandlers() {
+            // Изменение периода
+            document.getElementById('dateRange').addEventListener('change', function(e) {
+                currentDays = parseInt(e.target.value);
+                loadAnalytics();
+            });
+            
+            // Фильтры
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    currentFilter = this.dataset.filter;
+                    applyFilter();
+                });
+            });
+        }
+
+        // Применение фильтра
+        function applyFilter() {
+            // Здесь можно добавить логику фильтрации
+            console.log('Применен фильтр:', currentFilter);
+            loadAnalytics();
+        }
+
+        // Вспомогательные функции
+        function formatCurrency(value) {
+            const prefix = value < 0 ? '-$' : '$';
+            return prefix + Math.abs(value).toFixed(2);
+        }
+
+        function getMLScoreClass(score) {
+            if (score >= 80) return 'high';
+            if (score >= 60) return 'medium';
+            return 'low';
+        }
+
+        // Просмотр деталей стратегии
+        function viewStrategyDetails(strategy) {
+            // Здесь можно открыть модальное окно с деталями
+            console.log('Просмотр стратегии:', strategy);
+        }
+
+        // Экспорт отчета
+        async function exportReport() {
+            try {
+                // Здесь можно добавить логику экспорта
+                alert('Функция экспорта будет добавлена');
+            } catch (error) {
+                console.error('Ошибка экспорта:', error);
+            }
+        }
+    </script>
+</body>
+</html>
