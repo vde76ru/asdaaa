@@ -1,0 +1,1099 @@
+{% extends "base.html" %}
+
+{% block title %}Дашборд - Crypto Trading Bot{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<style>
+    /* Дополнительные стили для дашборда */
+    .stat-card {
+        background: linear-gradient(135deg, #2a2e39 0%, #1e222d 100%);
+        border: 1px solid #363a45;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+    }
+    
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        margin: 10px 0;
+    }
+    
+    .stat-label {
+        font-size: 0.9rem;
+        color: #787b86;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .status-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    
+    .status-running {
+        background: rgba(38, 166, 154, 0.2);
+        color: #26a69a;
+        border: 1px solid #26a69a;
+    }
+    
+    .status-stopped {
+        background: rgba(239, 83, 80, 0.2);
+        color: #ef5350;
+        border: 1px solid #ef5350;
+    }
+    
+    .status-loading {
+        background: rgba(255, 183, 77, 0.2);
+        color: #ffb74d;
+        border: 1px solid #ffb74d;
+    }
+    
+    .control-btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .btn-start {
+        background: linear-gradient(135deg, #26a69a, #00897b);
+        color: white;
+    }
+    
+    .btn-stop {
+        background: linear-gradient(135deg, #ef5350, #e53935);
+        color: white;
+    }
+    
+    .btn-emergency {
+        background: linear-gradient(135deg, #ff5722, #d84315);
+        color: white;
+    }
+    
+    .control-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+    
+    .control-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+    
+    .chart-container {
+        background: #131722;
+        border: 1px solid #363a45;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .chart-title {
+        color: #d1d4dc;
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .trades-table {
+        background: #131722;
+        border: 1px solid #363a45;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    
+    .table-dark {
+        --bs-table-bg: transparent;
+        --bs-table-border-color: #363a45;
+    }
+    
+    .table-dark td, .table-dark th {
+        border-color: #363a45;
+        color: #d1d4dc;
+    }
+    
+    .profit-positive {
+        color: #26a69a;
+        font-weight: 600;
+    }
+    
+    .profit-negative {
+        color: #ef5350;
+        font-weight: 600;
+    }
+    
+    .loading-spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid #363a45;
+        border-radius: 50%;
+        border-top-color: #26a69a;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header с статусом бота -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 mb-0 text-white">
+                    <i class="fas fa-robot text-info"></i> Торговый дашборд
+                </h1>
+                <div id="bot-status-container">
+                    <span id="bot-status" class="status-indicator status-loading">
+                        <div class="loading-spinner"></div>
+                        Загрузка...
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Уведомления -->
+    <div id="notifications-container"></div>
+
+    <!-- Основная статистика -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="fas fa-wallet"></i> Общий баланс
+                </div>
+                <div class="stat-value text-info" id="total-balance">
+                    $0.00
+                </div>
+                <div class="text-muted small">
+                    <i class="fas fa-arrow-up text-success"></i>
+                    <span id="balance-change">+0.00%</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="fas fa-coins"></i> Доступно
+                </div>
+                <div class="stat-value text-success" id="available-balance">
+                    $0.00
+                </div>
+                <div class="text-muted small">
+                    Свободные средства
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="fas fa-chart-line"></i> В позициях
+                </div>
+                <div class="stat-value text-warning" id="in-positions">
+                    $0.00
+                </div>
+                <div class="text-muted small">
+                    Активные сделки
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-label">
+                    <i class="fas fa-trophy"></i> P&L сегодня
+                </div>
+                <div class="stat-value" id="pnl-today">
+                    $0.00
+                </div>
+                <div class="text-muted small">
+                    <span id="pnl-percent">0.00%</span> от баланса
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Управление ботом -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cogs"></i> Управление ботом
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex gap-3 align-items-center flex-wrap">
+                        <button id="start-bot-btn" class="control-btn btn-start">
+                            <i class="fas fa-play"></i>
+                            Запустить бота
+                        </button>
+                        
+                        <button id="stop-bot-btn" class="control-btn btn-stop" disabled>
+                            <i class="fas fa-stop"></i>
+                            Остановить бота
+                        </button>
+                        
+                        <button id="emergency-stop-btn" class="control-btn btn-emergency">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Экстренная остановка
+                        </button>
+                        
+                        <div class="ms-auto">
+                            <button id="refresh-data-btn" class="control-btn" style="background: #2196f3;">
+                                <i class="fas fa-sync-alt"></i>
+                                Обновить данные
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Настройки быстрого доступа -->
+                    <div class="mt-3 pt-3 border-top border-secondary">
+                        <div class="row align-items-center">
+                            <div class="col-md-4">
+                                <label class="form-label text-white">Торговые пары:</label>
+                                <select id="trading-pairs-select" class="form-select bg-dark text-white border-secondary" multiple>
+                                    <option value="BTCUSDT">BTC/USDT</option>
+                                    <option value="ETHUSDT">ETH/USDT</option>
+                                    <option value="BNBUSDT">BNB/USDT</option>
+                                    <option value="SOLUSDT">SOL/USDT</option>
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label class="form-label text-white">Размер позиции:</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-dark text-white border-secondary">$</span>
+                                    <input type="number" id="position-size" class="form-control bg-dark text-white border-secondary" value="100" min="10" max="1000">
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label class="form-label text-white">Стратегия:</label>
+                                <select id="strategy-select" class="form-select bg-dark text-white border-secondary">
+                                    <option value="auto">Авто-выбор</option>
+                                    <option value="momentum">Моментум</option>
+                                    <option value="mean_reversion">Возврат к среднему</option>
+                                    <option value="grid">Сетка</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Графики -->
+    <div class="row mb-4">
+        <!-- График баланса -->
+        <div class="col-md-8">
+            <div class="chart-container">
+                <div class="chart-title">
+                    <i class="fas fa-chart-area text-success"></i>
+                    История баланса
+                    <div class="ms-auto">
+                        <small class="text-muted">Обновлено: <span id="balance-updated">--:--</span></small>
+                    </div>
+                </div>
+                <div style="position: relative; height: 300px;">
+                    <canvas id="balanceChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Краткая статистика -->
+        <div class="col-md-4">
+            <div class="chart-container">
+                <div class="chart-title">
+                    <i class="fas fa-info-circle text-info"></i>
+                    Краткая статистика
+                </div>
+                <div class="row text-center">
+                    <div class="col-6 mb-3">
+                        <div class="stat-label">Всего сделок</div>
+                        <div class="h4 text-white" id="total-trades">0</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <div class="stat-label">Win Rate</div>
+                        <div class="h4 text-success" id="win-rate">0%</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <div class="stat-label">Прибыльных</div>
+                        <div class="h5 text-success" id="profitable-trades">0</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <div class="stat-label">Убыточных</div>
+                        <div class="h5 text-danger" id="losing-trades">0</div>
+                    </div>
+                    <div class="col-12">
+                        <div class="stat-label">Максимальная просадка</div>
+                        <div class="h5 text-warning" id="max-drawdown">0%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Последние сделки -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="trades-table">
+                <div class="card-header bg-dark border-secondary">
+                    <h5 class="mb-0 text-white">
+                        <i class="fas fa-exchange-alt text-info"></i> Последние сделки
+                        <button id="refresh-trades-btn" class="btn btn-sm btn-outline-info ms-2">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Время</th>
+                                <th>Пара</th>
+                                <th>Тип</th>
+                                <th>Цена входа</th>
+                                <th>Цена выхода</th>
+                                <th>Количество</th>
+                                <th>P&L</th>
+                                <th>Статус</th>
+                            </tr>
+                        </thead>
+                        <tbody id="trades-table-body">
+                            <tr>
+                                <td colspan="8" class="text-center text-muted py-4">
+                                    <div class="loading-spinner me-2"></div>
+                                    Загрузка сделок...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Активные позиции -->
+    <div class="row">
+        <div class="col-12">
+            <div class="trades-table">
+                <div class="card-header bg-dark border-secondary">
+                    <h5 class="mb-0 text-white">
+                        <i class="fas fa-chart-line text-warning"></i> Активные позиции
+                        <span id="active-positions-count" class="badge bg-warning text-dark ms-2">0</span>
+                    </h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Пара</th>
+                                <th>Направление</th>
+                                <th>Размер</th>
+                                <th>Цена входа</th>
+                                <th>Текущая цена</th>
+                                <th>P&L</th>
+                                <th>Время</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody id="positions-table-body">
+                            <tr>
+                                <td colspan="8" class="text-center text-muted py-4">
+                                    Нет активных позиций
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Socket.IO для real-time обновлений -->
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
+<!-- НАШ ОБЪЕДИНЕННЫЙ ФАЙЛ ГРАФИКОВ -->
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+
+<script>
+/**
+ * 🎯 ГЛАВНЫЙ СКРИПТ ДАШБОРДА
+ */
+
+class DashboardManager {
+    constructor() {
+        this.socket = null;
+        this.updateInterval = 30000; // 30 секунд
+        this.isInitialized = false;
+        
+        console.log('🎛️ DashboardManager создан');
+    }
+
+    /**
+     * 🚀 Инициализация дашборда
+     */
+    async initialize() {
+        try {
+            console.log('🚀 Инициализация дашборда...');
+            
+            // Настраиваем обработчики событий
+            this.setupEventHandlers();
+            
+            // Подключаемся к WebSocket
+            this.connectWebSocket();
+            
+            // Загружаем начальные данные
+            await this.loadInitialData();
+            
+            // Запускаем периодические обновления
+            this.startPeriodicUpdates();
+            
+            this.isInitialized = true;
+            console.log('✅ Дашборд инициализирован');
+            
+        } catch (error) {
+            console.error('❌ Ошибка инициализации дашборда:', error);
+        }
+    }
+
+    /**
+     * 🎛️ Настройка обработчиков событий
+     */
+    setupEventHandlers() {
+        // Кнопки управления ботом
+        document.getElementById('start-bot-btn')?.addEventListener('click', () => this.startBot());
+        document.getElementById('stop-bot-btn')?.addEventListener('click', () => this.stopBot());
+        document.getElementById('emergency-stop-btn')?.addEventListener('click', () => this.emergencyStop());
+        
+        // Кнопки обновления
+        document.getElementById('refresh-data-btn')?.addEventListener('click', () => this.refreshAllData());
+        document.getElementById('refresh-trades-btn')?.addEventListener('click', () => this.loadRecentTrades());
+        
+        console.log('🎛️ Обработчики событий настроены');
+    }
+
+    /**
+     * 🌐 Подключение к WebSocket
+     */
+    connectWebSocket() {
+        if (typeof io !== 'undefined') {
+            this.socket = io();
+            
+            this.socket.on('connect', () => {
+                console.log('🔌 WebSocket подключен');
+                this.updateConnectionStatus(true);
+            });
+            
+            this.socket.on('disconnect', () => {
+                console.log('🔌 WebSocket отключен');
+                this.updateConnectionStatus(false);
+            });
+            
+            // Обновления бота
+            this.socket.on('bot_status', (data) => this.updateBotStatus(data));
+            this.socket.on('balance_update', (data) => this.updateBalance(data));
+            this.socket.on('new_trade', (data) => this.handleNewTrade(data));
+            this.socket.on('position_update', (data) => this.updatePositions(data));
+            
+        } else {
+            console.warn('⚠️ Socket.IO не доступен');
+        }
+    }
+
+    /**
+     * 📥 Загрузка начальных данных
+     */
+    async loadInitialData() {
+        try {
+            console.log('📥 Загрузка начальных данных...');
+            
+            // Загружаем данные параллельно
+            await Promise.all([
+                this.loadBotStatus(),
+                this.loadBalance(),
+                this.loadRecentTrades(),
+                this.loadActivePositions(),
+                this.loadTradingStats()
+            ]);
+            
+            console.log('✅ Начальные данные загружены');
+            
+        } catch (error) {
+            console.error('❌ Ошибка загрузки данных:', error);
+        }
+    }
+
+    /**
+     * 🤖 Загрузка статуса бота
+     */
+    async loadBotStatus() {
+        try {
+            const response = await fetch('/api/bot/status');
+            const data = await response.json();
+            
+            this.updateBotStatus(data);
+            
+        } catch (error) {
+            console.error('❌ Ошибка загрузки статуса бота:', error);
+            this.updateBotStatus({ status: 'error', is_running: false, message: 'Ошибка подключения' });
+        }
+    }
+
+    /**
+     * 💰 Загрузка баланса
+     */
+    async loadBalance() {
+        try {
+            const response = await fetch('/api/balance');
+            const data = await response.json();
+            
+            if (data.success) {
+                this.updateBalance(data.balance);
+                
+                // Обновляем время последнего обновления
+                document.getElementById('balance-updated').textContent = new Date().toLocaleTimeString();
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка загрузки баланса:', error);
+        }
+    }
+
+    /**
+     * 📊 Загрузка последних сделок
+     */
+    async loadRecentTrades() {
+        try {
+            const response = await fetch('/api/trades/recent');
+            const data = await response.json();
+            
+            if (data.success) {
+                this.updateTradesTable(data.trades);
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка загрузки сделок:', error);
+            this.updateTradesTable([]);
+        }
+    }
+
+    /**
+     * 📈 Загрузка активных позиций
+     */
+    async loadActivePositions() {
+        try {
+            const response = await fetch('/api/bot/positions');
+            const data = await response.json();
+            
+            if (data.success) {
+                this.updatePositionsTable(data.positions);
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка загрузки позиций:', error);
+            this.updatePositionsTable([]);
+        }
+    }
+
+    /**
+     * 📊 Загрузка статистики торговли
+     */
+    async loadTradingStats() {
+        try {
+            const response = await fetch('/api/trading/stats');
+            const data = await response.json();
+            
+            if (data.success) {
+                this.updateTradingStats(data.stats);
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка загрузки статистики:', error);
+        }
+    }
+
+    /**
+     * 🤖 Обновление статуса бота
+     */
+    updateBotStatus(status) {
+        const statusElement = document.getElementById('bot-status');
+        const startBtn = document.getElementById('start-bot-btn');
+        const stopBtn = document.getElementById('stop-bot-btn');
+        
+        if (!statusElement) return;
+        
+        // Определяем статус
+        const isRunning = status.is_running || status.status === 'running';
+        const hasError = status.status === 'error';
+        
+        // Обновляем индикатор статуса
+        statusElement.className = 'status-indicator ' + 
+            (hasError ? 'status-stopped' : isRunning ? 'status-running' : 'status-stopped');
+        
+        statusElement.innerHTML = `
+            <i class="fas fa-${hasError ? 'exclamation-triangle' : isRunning ? 'play-circle' : 'stop-circle'}"></i>
+            ${hasError ? 'Ошибка' : isRunning ? 'Работает' : 'Остановлен'}
+        `;
+        
+        // Обновляем кнопки
+        if (startBtn && stopBtn) {
+            startBtn.disabled = isRunning;
+            stopBtn.disabled = !isRunning;
+        }
+        
+        console.log(`🤖 Статус бота: ${isRunning ? 'запущен' : 'остановлен'}`);
+    }
+
+    /**
+     * 💰 Обновление баланса
+     */
+    updateBalance(balance) {
+        if (!balance) return;
+        
+        // Обновляем элементы интерфейса
+        const updates = {
+            'total-balance': balance.total_usdt || balance.available_usdt || 0,
+            'available-balance': balance.available_usdt || balance.free || 0,
+            'in-positions': balance.in_positions || 0,
+            'pnl-today': balance.pnl_today || 0
+        };
+        
+        Object.entries(updates).forEach(([id, value]) => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = '$' + Number(value).toFixed(2);
+                
+                // Цветовая индикация для P&L
+                if (id === 'pnl-today') {
+                    element.className = 'stat-value ' + (value >= 0 ? 'text-success' : 'text-danger');
+                }
+            }
+        });
+        
+        // Обновляем процент P&L
+        const pnlPercent = document.getElementById('pnl-percent');
+        if (pnlPercent && balance.total_usdt) {
+            const percent = ((balance.pnl_today || 0) / balance.total_usdt * 100).toFixed(2);
+            pnlPercent.textContent = percent + '%';
+        }
+        
+        console.log('💰 Баланс обновлен:', balance);
+    }
+
+    /**
+     * 📊 Обновление таблицы сделок
+     */
+    updateTradesTable(trades) {
+        const tbody = document.getElementById('trades-table-body');
+        if (!tbody) return;
+        
+        if (!trades || trades.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        Нет данных о сделках
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        tbody.innerHTML = trades.map(trade => `
+            <tr>
+                <td>${new Date(trade.created_at).toLocaleString()}</td>
+                <td><strong>${trade.symbol}</strong></td>
+                <td>
+                    <span class="badge bg-${trade.side === 'BUY' ? 'success' : 'danger'}">
+                        ${trade.side}
+                    </span>
+                </td>
+                <td>$${Number(trade.price || trade.entry_price || 0).toFixed(4)}</td>
+                <td>$${Number(trade.close_price || trade.exit_price || 0).toFixed(4)}</td>
+                <td>${Number(trade.quantity || 0).toFixed(6)}</td>
+                <td class="${trade.profit_loss >= 0 ? 'profit-positive' : 'profit-negative'}">
+                    ${trade.profit_loss >= 0 ? '+' : ''}$${Number(trade.profit_loss || 0).toFixed(2)}
+                </td>
+                <td>
+                    <span class="badge bg-${trade.status === 'CLOSED' ? 'success' : trade.status === 'OPEN' ? 'warning' : 'secondary'}">
+                        ${trade.status}
+                    </span>
+                </td>
+            </tr>
+        `).join('');
+        
+        console.log(`📊 Обновлена таблица сделок: ${trades.length} записей`);
+    }
+
+    /**
+     * 📈 Обновление таблицы позиций
+     */
+    updatePositionsTable(positions) {
+        const tbody = document.getElementById('positions-table-body');
+        const countBadge = document.getElementById('active-positions-count');
+        
+        if (!tbody) return;
+        
+        // Обновляем счетчик
+        if (countBadge) {
+            countBadge.textContent = positions?.length || 0;
+        }
+        
+        if (!positions || positions.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        Нет активных позиций
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        tbody.innerHTML = positions.map(position => `
+            <tr>
+                <td><strong>${position.symbol}</strong></td>
+                <td>
+                    <span class="badge bg-${position.side === 'BUY' ? 'success' : 'danger'}">
+                        ${position.side}
+                    </span>
+                </td>
+                <td>${Number(position.quantity || 0).toFixed(6)}</td>
+                <td>$${Number(position.entry_price || 0).toFixed(4)}</td>
+                <td>$${Number(position.current_price || 0).toFixed(4)}</td>
+                <td class="${position.unrealized_pnl >= 0 ? 'profit-positive' : 'profit-negative'}">
+                    ${position.unrealized_pnl >= 0 ? '+' : ''}$${Number(position.unrealized_pnl || 0).toFixed(2)}
+                </td>
+                <td>${new Date(position.created_at).toLocaleString()}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-danger" onclick="closePosition('${position.symbol}')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+        
+        console.log(`📈 Обновлена таблица позиций: ${positions.length} записей`);
+    }
+
+    /**
+     * 📊 Обновление статистики торговли
+     */
+    updateTradingStats(stats) {
+        if (!stats) return;
+        
+        const updates = {
+            'total-trades': stats.total_trades || 0,
+            'profitable-trades': stats.profitable_trades || 0,
+            'losing-trades': stats.losing_trades || 0,
+            'win-rate': (stats.win_rate || 0).toFixed(1) + '%',
+            'max-drawdown': (stats.max_drawdown || 0).toFixed(1) + '%'
+        };
+        
+        Object.entries(updates).forEach(([id, value]) => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = value;
+            }
+        });
+        
+        console.log('📊 Статистика обновлена:', stats);
+    }
+
+    /**
+     * 🚀 Запуск бота
+     */
+    async startBot() {
+        try {
+            console.log('🚀 Запуск бота...');
+            
+            const startBtn = document.getElementById('start-bot-btn');
+            startBtn.disabled = true;
+            startBtn.innerHTML = '<div class="loading-spinner me-2"></div>Запуск...';
+            
+            const response = await fetch('/api/bot/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    strategy: document.getElementById('strategy-select')?.value || 'auto',
+                    position_size: Number(document.getElementById('position-size')?.value || 100),
+                    pairs: Array.from(document.getElementById('trading-pairs-select')?.selectedOptions || [])
+                        .map(option => option.value)
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.showNotification('Бот успешно запущен', 'success');
+                await this.loadBotStatus();
+            } else {
+                throw new Error(data.error || 'Ошибка запуска бота');
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка запуска бота:', error);
+            this.showNotification('Ошибка запуска бота: ' + error.message, 'error');
+        } finally {
+            const startBtn = document.getElementById('start-bot-btn');
+            startBtn.disabled = false;
+            startBtn.innerHTML = '<i class="fas fa-play"></i> Запустить бота';
+        }
+    }
+
+    /**
+     * ⏹️ Остановка бота
+     */
+    async stopBot() {
+        try {
+            console.log('⏹️ Остановка бота...');
+            
+            const stopBtn = document.getElementById('stop-bot-btn');
+            stopBtn.disabled = true;
+            stopBtn.innerHTML = '<div class="loading-spinner me-2"></div>Остановка...';
+            
+            const response = await fetch('/api/bot/stop', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.showNotification('Бот остановлен', 'success');
+                await this.loadBotStatus();
+            } else {
+                throw new Error(data.error || 'Ошибка остановки бота');
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка остановки бота:', error);
+            this.showNotification('Ошибка остановки бота: ' + error.message, 'error');
+        } finally {
+            const stopBtn = document.getElementById('stop-bot-btn');
+            stopBtn.disabled = false;
+            stopBtn.innerHTML = '<i class="fas fa-stop"></i> Остановить бота';
+        }
+    }
+
+    /**
+     * 🚨 Экстренная остановка
+     */
+    async emergencyStop() {
+        if (!confirm('Вы уверены, что хотите выполнить экстренную остановку? Все открытые позиции будут закрыты.')) {
+            return;
+        }
+        
+        try {
+            console.log('🚨 Экстренная остановка...');
+            
+            const response = await fetch('/api/bot/emergency-stop', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.showNotification('Экстренная остановка выполнена', 'warning');
+                await this.loadBotStatus();
+                await this.loadActivePositions();
+            } else {
+                throw new Error(data.error || 'Ошибка экстренной остановки');
+            }
+            
+        } catch (error) {
+            console.error('❌ Ошибка экстренной остановки:', error);
+            this.showNotification('Ошибка экстренной остановки: ' + error.message, 'error');
+        }
+    }
+
+    /**
+     * 🔄 Обновление всех данных
+     */
+    async refreshAllData() {
+        console.log('🔄 Обновление всех данных...');
+        
+        const refreshBtn = document.getElementById('refresh-data-btn');
+        refreshBtn.disabled = true;
+        refreshBtn.innerHTML = '<div class="loading-spinner me-2"></div>Обновление...';
+        
+        try {
+            await this.loadInitialData();
+            
+            // Обновляем графики если они доступны
+            if (window.chartsManager) {
+                await window.chartsManager.updateAll();
+            }
+            
+            this.showNotification('Данные обновлены', 'success');
+            
+        } catch (error) {
+            console.error('❌ Ошибка обновления данных:', error);
+            this.showNotification('Ошибка обновления данных', 'error');
+        } finally {
+            refreshBtn.disabled = false;
+            refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Обновить данные';
+        }
+    }
+
+    /**
+     * 🔄 Периодические обновления
+     */
+    startPeriodicUpdates() {
+        setInterval(() => {
+            this.loadBalance();
+            this.loadActivePositions();
+        }, this.updateInterval);
+        
+        console.log(`🔄 Периодические обновления запущены (${this.updateInterval/1000}с)`);
+    }
+
+    /**
+     * 🔌 Обновление статуса подключения
+     */
+    updateConnectionStatus(connected) {
+        // Можно добавить индикатор подключения в UI
+        console.log(`🔌 Подключение: ${connected ? 'активно' : 'потеряно'}`);
+    }
+
+    /**
+     * 📊 Обработка новой сделки (WebSocket)
+     */
+    handleNewTrade(trade) {
+        console.log('📊 Новая сделка:', trade);
+        
+        // Обновляем таблицы
+        this.loadRecentTrades();
+        this.loadBalance();
+        
+        // Показываем уведомление
+        const profitClass = trade.profit_loss >= 0 ? 'success' : 'danger';
+        const profitSign = trade.profit_loss >= 0 ? '+' : '';
+        
+        this.showNotification(
+            `Сделка ${trade.symbol}: ${profitSign}$${trade.profit_loss?.toFixed(2) || '0.00'}`, 
+            profitClass
+        );
+    }
+
+    /**
+     * 💬 Показ уведомлений
+     */
+    showNotification(message, type = 'info') {
+        const container = document.getElementById('notifications-container');
+        if (!container) return;
+        
+        const notification = document.createElement('div');
+        notification.className = `alert alert-${type === 'success' ? 'success' : type === 'error' ? 'danger' : type === 'warning' ? 'warning' : 'info'} alert-dismissible fade show`;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            min-width: 300px;
+        `;
+        
+        notification.innerHTML = `
+            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-triangle' : type === 'warning' ? 'exclamation-circle' : 'info-circle'}"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        container.appendChild(notification);
+        
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 5000);
+    }
+}
+
+// Глобальные функции для таблиц
+window.closePosition = async function(symbol) {
+    if (!confirm(`Закрыть позицию по ${symbol}?`)) return;
+    
+    try {
+        const response = await fetch(`/api/bot/close-position/${symbol}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            window.dashboardManager.showNotification(`Позиция ${symbol} закрыта`, 'success');
+            window.dashboardManager.loadActivePositions();
+        } else {
+            throw new Error(data.error);
+        }
+        
+    } catch (error) {
+        window.dashboardManager.showNotification(`Ошибка закрытия позиции: ${error.message}`, 'error');
+    }
+};
+
+// Инициализация при загрузке страницы
+document.addEventListener('DOMContentLoaded', async function() {
+    try {
+        console.log('🚀 Инициализация дашборда...');
+        
+        // Создаем менеджер дашборда
+        window.dashboardManager = new DashboardManager();
+        await window.dashboardManager.initialize();
+        
+        console.log('✅ Дашборд готов к работе');
+        
+    } catch (error) {
+        console.error('❌ Критическая ошибка дашборда:', error);
+    }
+});
+
+</script>
+{% endblock %}
