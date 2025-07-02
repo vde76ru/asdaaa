@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News & Social Signals - Crypto Trading Bot</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <style>
+        .news-item, .social-signal {
+            transition: all 0.3s ease;
+        }
+        
+        .news-item:hover, .social-signal:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+        
+        .new-item-highlight {
+            animation: highlight 3s ease;
+        }
+        
+        @keyframes highlight {
+            0% { background-color: #fff3cd; }
+            100% { background-color: transparent; }
+        }
+        
+        .impact-score {
+            color: #ffc107;
+            font-size: 1.2em;
+        }
+        
+        .badge {
+            font-size: 0.8em;
+        }
+        
+        .signal-meta span {
+            margin-right: 10px;
+        }
+        
+        .news-container, .social-container {
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        
+        .filter-buttons {
+            margin-bottom: 20px;
+        }
+        
+        .sentiment-positive { color: #28a745; }
+        .sentiment-negative { color: #dc3545; }
+        .sentiment-neutral { color: #6c757d; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-robot"></i> Crypto Trading Bot
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/">Dashboard</a>
+                <a class="nav-link" href="/charts">Charts</a>
+                <a class="nav-link" href="/analytics">Analytics</a>
+                <a class="nav-link active" href="/news">News</a>
+                <a class="nav-link" href="/logout">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <div class="col-12">
+                <h2 class="mb-4">
+                    <i class="fas fa-newspaper"></i> News & Social Signals
+                </h2>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- News Section -->
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-rss"></i> Latest News
+                        </h5>
+                        <div class="filter-buttons">
+                            <button class="btn btn-sm btn-outline-primary" onclick="filterNews('all')">All</button>
+                            <button class="btn btn-sm btn-outline-success" onclick="filterNews('positive')">Positive</button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="filterNews('negative')">Negative</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="news-loading" class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                        <div id="news-container" class="news-container" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Social Signals Section -->
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-share-alt"></i> Social Signals
+                        </h5>
+                        <div class="filter-buttons">
+                            <button class="btn btn-sm btn-outline-info" onclick="filterSocial('twitter')">Twitter</button>
+                            <button class="btn btn-sm btn-outline-warning" onclick="filterSocial('reddit')">Reddit</button>
+                            <button class="btn btn-sm btn-outline-primary" onclick="filterSocial('all')">All</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="social-loading" class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                        <div id="social-container" class="social-container" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Stats -->
+        <div class="row mt-4">
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Market Sentiment</h5>
+                        <div id="overall-sentiment" class="display-4">
+                            <i class="fas fa-minus-circle text-muted"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">News Impact</h5>
+                        <div id="news-impact" class="display-4 text-warning">
+                            0
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Social Volume</h5>
+                        <div id="social-volume" class="display-4 text-info">
+                            0
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Active Alerts</h5>
+                        <div id="active-alerts" class="display-4 text-danger">
+                            0
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/news.js') }}"></script>
+    <script>
+        // Filter functions
+        function filterNews(sentiment) {
+            // Implement news filtering
+            console.log('Filter news by:', sentiment);
+        }
+        
+        function filterSocial(platform) {
+            // Implement social filtering
+            console.log('Filter social by:', platform);
+        }
+        
+        // Hide loading spinners when content loads
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('news-loading').style.display = 'none';
+                document.getElementById('news-container').style.display = 'block';
+                document.getElementById('social-loading').style.display = 'none';
+                document.getElementById('social-container').style.display = 'block';
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
