@@ -1,0 +1,376 @@
+<!-- Файл: /var/www/www-root/data/www/systemetech.ru/src/web/templates/settings.html -->
+{% extends "base.html" %}
+
+{% block title %}Настройки - Crypto Trading Bot{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Заголовок страницы -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3 mb-0 text-gray-800">Настройки системы</h1>
+        </div>
+    </div>
+
+    <!-- Алерты -->
+    <div id="settings-alerts"></div>
+
+    <!-- Форма настроек -->
+    <div class="row">
+        <!-- Основные настройки -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Основные настройки</h6>
+                </div>
+                <div class="card-body">
+                    <form id="general-settings-form">
+                        <div class="form-group">
+                            <label for="bot-mode">Режим работы бота</label>
+                            <select class="form-control" id="bot-mode" name="bot_mode">
+                                <option value="testnet">Testnet (тестовая сеть)</option>
+                                <option value="mainnet">Mainnet (реальная торговля)</option>
+                            </select>
+                            <small class="form-text text-muted">Внимание! Mainnet использует реальные средства</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="default-strategy">Стратегия по умолчанию</label>
+                            <select class="form-control" id="default-strategy" name="default_strategy">
+                                <option value="auto">Автоматический выбор</option>
+                                <option value="multi_indicator">Мульти-индикаторная</option>
+                                <option value="scalping">Скальпинг</option>
+                                <option value="momentum">Моментум</option>
+                                <option value="conservative">Консервативная</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="max-positions">Максимум открытых позиций</label>
+                            <input type="number" class="form-control" id="max-positions" 
+                                   name="max_positions" min="1" max="10" value="1">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="position-size">Размер позиции (USDT)</label>
+                            <input type="number" class="form-control" id="position-size" 
+                                   name="position_size" min="10" max="10000" step="10" value="100">
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">Сохранить основные настройки</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Настройки риск-менеджмента -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Риск-менеджмент</h6>
+                </div>
+                <div class="card-body">
+                    <form id="risk-settings-form">
+                        <div class="form-group">
+                            <label for="stop-loss">Stop Loss (%)</label>
+                            <input type="number" class="form-control" id="stop-loss" 
+                                   name="stop_loss_percent" min="0.5" max="10" step="0.1" value="2.0">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="take-profit">Take Profit (%)</label>
+                            <input type="number" class="form-control" id="take-profit" 
+                                   name="take_profit_percent" min="0.5" max="20" step="0.1" value="4.0">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="max-daily-loss">Максимальный дневной убыток (%)</label>
+                            <input type="number" class="form-control" id="max-daily-loss" 
+                                   name="max_daily_loss_percent" min="1" max="50" step="1" value="10">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="max-daily-trades">Максимум сделок в день</label>
+                            <input type="number" class="form-control" id="max-daily-trades" 
+                                   name="max_daily_trades" min="1" max="100" step="1" value="10">
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">Сохранить настройки риска</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Торговые пары -->
+    <div class="row">
+        <div class="col-lg-12 mb-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">Торговые пары</h6>
+                    <button class="btn btn-sm btn-success" data-toggle="modal" data-target="#addPairModal">
+                        <i class="fas fa-plus"></i> Добавить пару
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="trading-pairs-table">
+                            <thead>
+                                <tr>
+                                    <th>Символ</th>
+                                    <th>Активна</th>
+                                    <th>Стратегия</th>
+                                    <th>Stop Loss %</th>
+                                    <th>Take Profit %</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Данные загружаются через JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- API подключения -->
+    <div class="row">
+        <div class="col-lg-12 mb-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">API подключения</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Bybit API</h6>
+                            <p class="mb-1">Статус: <span id="bybit-status" class="badge badge-success">Подключено</span></p>
+                            <p class="mb-1">Режим: <span id="bybit-mode" class="badge badge-info">Testnet</span></p>
+                            <small class="text-muted">API ключи настраиваются в файле конфигурации</small>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Telegram</h6>
+                            <p class="mb-1">Статус: <span id="telegram-status" class="badge badge-success">Активен</span></p>
+                            <button class="btn btn-sm btn-primary" id="test-telegram">Тест уведомления</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно добавления пары -->
+<div class="modal fade" id="addPairModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Добавить торговую пару</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <form id="add-pair-form">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="pair-symbol">Символ пары</label>
+                        <input type="text" class="form-control" id="pair-symbol" 
+                               name="symbol" placeholder="BTCUSDT" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="pair-strategy">Стратегия</label>
+                        <select class="form-control" id="pair-strategy" name="strategy">
+                            <option value="multi_indicator">Мульти-индикаторная</option>
+                            <option value="scalping">Скальпинг</option>
+                            <option value="momentum">Моментум</option>
+                            <option value="conservative">Консервативная</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Добавить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Загрузка текущих настроек при загрузке страницы
+$(document).ready(function() {
+    loadSettings();
+    loadTradingPairs();
+    checkApiStatus();
+});
+
+// Загрузка настроек
+function loadSettings() {
+    $.get('/api/settings', function(data) {
+        $('#bot-mode').val(data.bot_mode || 'testnet');
+        $('#default-strategy').val(data.default_strategy || 'auto');
+        $('#max-positions').val(data.max_positions || 1);
+        $('#position-size').val(data.position_size || 100);
+        $('#stop-loss').val(data.stop_loss_percent || 2.0);
+        $('#take-profit').val(data.take_profit_percent || 4.0);
+        $('#max-daily-loss').val(data.max_daily_loss_percent || 10);
+        $('#max-daily-trades').val(data.max_daily_trades || 10);
+    }).fail(function() {
+        showAlert('danger', 'Ошибка загрузки настроек');
+    });
+}
+
+// Загрузка торговых пар
+function loadTradingPairs() {
+    $.get('/api/trading-pairs', function(data) {
+        const tbody = $('#trading-pairs-table tbody');
+        tbody.empty();
+        
+        data.pairs.forEach(function(pair) {
+            const row = `
+                <tr>
+                    <td>${pair.symbol}</td>
+                    <td>
+                        <div class="custom-control custom-switch">
+                            <input type="checkbox" class="custom-control-input" 
+                                   id="pair-${pair.id}" ${pair.is_active ? 'checked' : ''}
+                                   onchange="togglePair(${pair.id}, this.checked)">
+                            <label class="custom-control-label" for="pair-${pair.id}"></label>
+                        </div>
+                    </td>
+                    <td>${pair.strategy}</td>
+                    <td>${pair.stop_loss_percent}%</td>
+                    <td>${pair.take_profit_percent}%</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary edit-pair" data-id="${pair.id}">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger delete-pair" data-id="${pair.id}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+            tbody.append(row);
+        });
+    });
+}
+
+// Проверка статуса API
+function checkApiStatus() {
+    $.get('/api/status', function(data) {
+        if (data.exchange && data.exchange.connected) {
+            $('#bybit-status').removeClass('badge-danger').addClass('badge-success').text('Подключено');
+        } else {
+            $('#bybit-status').removeClass('badge-success').addClass('badge-danger').text('Отключено');
+        }
+        
+        $('#bybit-mode').text(data.config && data.config.mode ? data.config.mode : 'Testnet');
+    });
+}
+
+// Переключение активности пары
+function togglePair(pairId, isActive) {
+    $.post('/api/trading-pairs/' + pairId + '/toggle', {
+        is_active: isActive
+    }).fail(function() {
+        showAlert('danger', 'Ошибка изменения статуса пары');
+        loadTradingPairs(); // Перезагружаем для отката изменений
+    });
+}
+
+// Отправка формы основных настроек
+$('#general-settings-form').submit(function(e) {
+    e.preventDefault();
+    
+    const formData = $(this).serializeArray();
+    const settings = {};
+    formData.forEach(function(field) {
+        settings[field.name] = field.value;
+    });
+    
+    $.post('/api/settings/general', settings)
+        .done(function(response) {
+            showAlert('success', 'Основные настройки сохранены');
+        })
+        .fail(function() {
+            showAlert('danger', 'Ошибка сохранения настроек');
+        });
+});
+
+// Отправка формы риск-менеджмента
+$('#risk-settings-form').submit(function(e) {
+    e.preventDefault();
+    
+    const formData = $(this).serializeArray();
+    const settings = {};
+    formData.forEach(function(field) {
+        settings[field.name] = parseFloat(field.value);
+    });
+    
+    $.post('/api/settings/risk', settings)
+        .done(function(response) {
+            showAlert('success', 'Настройки риск-менеджмента сохранены');
+        })
+        .fail(function() {
+            showAlert('danger', 'Ошибка сохранения настроек');
+        });
+});
+
+// Добавление новой пары
+$('#add-pair-form').submit(function(e) {
+    e.preventDefault();
+    
+    const symbol = $('#pair-symbol').val().toUpperCase();
+    const strategy = $('#pair-strategy').val();
+    
+    $.post('/api/trading-pairs', {
+        symbol: symbol,
+        strategy: strategy,
+        is_active: true
+    })
+    .done(function(response) {
+        $('#addPairModal').modal('hide');
+        $('#pair-symbol').val('');
+        loadTradingPairs();
+        showAlert('success', 'Торговая пара добавлена');
+    })
+    .fail(function() {
+        showAlert('danger', 'Ошибка добавления пары');
+    });
+});
+
+// Тест Telegram уведомлений
+$('#test-telegram').click(function() {
+    $.post('/api/test/telegram')
+        .done(function() {
+            showAlert('success', 'Тестовое сообщение отправлено');
+        })
+        .fail(function() {
+            showAlert('danger', 'Ошибка отправки сообщения');
+        });
+});
+
+// Вспомогательная функция для показа алертов
+function showAlert(type, message) {
+    const alert = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="close" data-dismiss="alert">
+                <span>&times;</span>
+            </button>
+        </div>
+    `;
+    
+    $('#settings-alerts').html(alert);
+    
+    // Автоматически скрываем через 5 секунд
+    setTimeout(function() {
+        $('.alert').fadeOut();
+    }, 5000);
+}
+</script>
+
+{% endblock %}
